@@ -7,10 +7,43 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+For my UML Design, I wanted to focus on classes that actively provide information to a specific pet and pet owner. I've considered things like:
+    - What if the Owner has multiple pets
+        - For each Pet, what tasks need to be done
+            - For each task, is there a time limit of when the task needs to be done by
+            - Tasks should be ordered in terms of time limit.
+            - Examples of tasks include: scheduling a time for a walk, feeding time, and being able to see the entire list of tasks they added for the specific pet.
+    
+    In conclusion: I have the following classes.
+    - Owner class: theres are methods for the following:
+        - Set owner name.
+        - Initialize a list of Pets they own
+        - Add a Pet (this will initialize a Pet Object)
+        - Possibly include a daily plan function that allows the list of tasks to be sorted by time or priority.
+    - Pet class:
+        - I want the name of the pet intialized.
+        - Type of pet: for example Dog, Cat, Bird, etc
+    - Task class:
+        - Initialize a task by: Time start, Description, duration, priority
+        - Every Pet has a list of Tasks (Leaning towards a dictionary)
+            - Each task needs to be identified by time.
+            - Every task has a priority: High, Medium, Low
+            - Every task has an explanation
+            - Every task has a duration for example, "10min"
+    - Priority class:
+        - Sets the priority of a Task: High, Medium, Low
+
+
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+One change that was made was changing the Priority element into a class. This was done by the AI and I think it looks better so I decided to keep it.
+
+    - When I had the create a Python Class skeleton, I notice the set_name function in the Owner class. I took a look in app.py and see that there's no directive or reason to have a function that allows the user to change their name. So i opted to delete this function. I made sure to ask Claude why it was written in the first place, just to be safe and it pretty much agreed that it was redundant as the name variable is public so it can easily be rename to something else for example: Owner.name = "New Name Here"
+        - This change was also made in the UML draft by removing +set_name from the draft.
 
 ---
 
