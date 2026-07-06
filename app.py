@@ -1,6 +1,25 @@
+from datetime import time
+
 import streamlit as st
 
+from pawpal_system import Owner, Pet, Task, Scheduler
+
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
+
+
+def format_time(minutes):
+    """Convert minutes-since-midnight (int) into a readable HH:MM string."""
+    hours, mins = divmod(minutes, 60)
+    return f"{hours:02d}:{mins:02d}"
+
+
+def get_or_create_pet(owner, name, pet_type):
+    """Return the owner's pet with this name, creating it if it doesn't exist."""
+    for pet in owner.pets:
+        if pet.name == name:
+            pet.pet_type = pet_type  # keep type in sync with the UI selection
+            return pet
+    return owner.add_pet(name, pet_type)
 
 st.title("🐾 PawPal+")
 
@@ -38,51 +57,71 @@ At minimum, your system should:
 
 st.divider()
 
-st.subheader("Quick Demo Inputs (UI only)")
+st.subheader("Quick Demo Inputs")
 owner_name = st.text_input("Owner name", value="Jordan")
 pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 
+# Persist a single Owner across reruns. Guarding with the "not in" check means
+# it is created once, not rebuilt (and emptied) on every rerun.
+if "owner" not in st.session_state:
+    st.session_state.owner = Owner(owner_name)
+owner = st.session_state.owner
+owner.name = owner_name  # keep the owner's name in sync with the UI field
+
+# Get (or create) the pet the tasks will be added to.
+pet = get_or_create_pet(owner, pet_name, species)
+
 st.markdown("### Tasks")
-st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
+st.caption("Add tasks for the pet above. They persist across reruns via session_state.")
 
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
-
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
 with col2:
-    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
+    start = st.time_input("Start time", value=time(8, 0))
 with col3:
+    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
+with col4:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
 if st.button("Add task"):
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+    time_start = start.hour * 60 + start.minute  # minutes since midnight
+    pet.add_task(Task(time_start, task_title, int(duration), priority))
 
-if st.session_state.tasks:
-    st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+if pet.get_tasks():
+    st.write(f"Current tasks for {pet.name}:")
+    st.table(
+        [
+            {
+                "time": format_time(t.time_start),
+                "title": t.description,
+                "duration_min": t.duration_min,
+                "priority": t.priority,
+                "done": t.completed,
+            }
+            for t in pet.get_tasks()
+        ]
+    )
 else:
     st.info("No tasks yet. Add one above.")
 
 st.divider()
 
 st.subheader("Build Schedule")
-st.caption("This button should call your scheduling logic once you implement it.")
+st.caption("Builds a plan across all of the owner's pets using the Scheduler.")
+
+sort_by = st.selectbox("Sort by", ["time", "priority"], index=0)
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-    )
-    st.markdown(
-        """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-    )
+    scheduler = Scheduler(owner)  # data source: the persisted Owner
+    plan = scheduler.build_plan(sort_by)
+    if plan:
+        st.write(f"Today's schedule for {owner.name}:")
+        for t in plan:
+            st.write(
+                f"- {format_time(t.time_start)} — {t.description} "
+                f"({t.duration_min} min) [priority: {t.priority}] for {t.pet.name}"
+            )
+    else:
+        st.info("No tasks to schedule yet. Add some above.")

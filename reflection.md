@@ -67,12 +67,22 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
         - I need to add this for the Streamlit UI layer.
 - How did you decide which constraints mattered most?
     - Order by time started followed by a secondary ordering of the Priority is important.
+    - I also wanted to print our messages to the user about time conflicts for task and add each task instead of just overwriting the tasks with the same start time.
+    - Factoring in the duration for each task into the calculations was very import as well.
 
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
+    - I changed Pet.tasks from a dictionary into a list.
+        - This made the search lookup for checking if there is a time conflict from O(1) to O(n) --- small n. It can go up to N times though.
+        - What I gained though, is adding multiple task with with conflicting time.
+    - For conflict-handling: I only added a warning but still chose to add the task to the list anyways. THis is to avoid the issue of users being confused when the task is not added, or when the previous task is overwritten.
+        - Also I plan on changing this once this is connected to Streamlit for user inputs.
+        - We certainly lost out on enforcing any overlapping rule, but again this will be changed once the user input is added in.
+
+    - Im also adding a start-time input in the UI as its missing and my implementation has one. THis is how I ordered the taskes.
 
 ---
 
