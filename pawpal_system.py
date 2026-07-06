@@ -11,6 +11,7 @@ PRIORITY_RANK = {"high": 1, "medium": 2, "low": 3}
 
 class Task:
     def __init__(self, time_start, description, duration_min, priority, pet=None):
+        """Create a care task with a start time, duration, and priority."""
         # time_start stored as minutes since midnight (int) so tasks sort correctly.
         self.time_start = time_start
         self.description = description
@@ -20,10 +21,12 @@ class Task:
         self.completed = False  # marked True once the owner finishes the task
 
     def mark_complete(self):
+        """Mark this task as done."""
         # Flip this task's status to done so the plan/UI can show it as finished.
         self.completed = True  # set the flag; nothing else needs to change
 
     def __lt__(self, other):
+        """Order tasks chronologically by start time (used when sorting)."""
         # Defines "less than" so sorting a list of Tasks is chronological by default.
         # Python calls this during sorted()/sort(); earlier start time comes first.
         return self.time_start < other.time_start  # compare the two start times
@@ -31,34 +34,55 @@ class Task:
 
 class Pet:
     def __init__(self, name, pet_type, owner=None):
+        """Create a pet with a name, type, and an empty task list."""
         self.name = name
         self.pet_type = pet_type
-        self.tasks = {}  # keyed by time_start -> Task (one task per start time)
+        self.tasks = []  # list of Tasks (allows multiple tasks at the same time)
         self.owner = owner  # back-reference to the owning Owner
 
     def add_task(self, task):
+        """Add a task to this pet, warning if it overlaps an existing one."""
         # Register a task with this pet and wire up the back-reference.
         task.pet = self  # so the task knows which pet it belongs to
-        self.tasks[task.time_start] = task  # store keyed by start time
+        # Two tasks overlap when each starts before the other ends. This is
+        # duration-aware, so it catches partial overlaps, not just equal starts.
+        new_end = task.time_start + task.duration_min  # when the new task finishes
+        conflicts = [
+            t
+            for t in self.tasks
+            if task.time_start < t.time_start + t.duration_min  # new starts before t ends
+            and t.time_start < new_end  # t starts before new ends
+        ]
+        if conflicts:
+            # Warn about the overlapping time slot, but still add the task.
+            print(
+                f"Warning: '{task.description}' overlaps with "
+                f"'{conflicts[0].description}'. Adding it anyway."
+            )
+        self.tasks.append(task)  # add without removing the existing task
         return task  # hand it back for convenience (e.g. chaining/testing)
 
     def get_tasks(self):
-        # Return this pet's tasks as a list (callers don't need the dict keys).
-        return list(self.tasks.values())  # dict values -> plain list of Tasks
+        """Return this pet's tasks as a list."""
+        # Return this pet's tasks as a list.
+        return self.tasks
 
 
 class Owner:
     def __init__(self, name):
+        """Create an owner with a name and no pets yet."""
         self.name = name
         self.pets = []  # list of Pet objects this owner owns
 
     def add_pet(self, name, pet_type):
+        """Create a pet owned by this owner and return it."""
         # Create a Pet, link it back to this owner, and track it.
         pet = Pet(name, pet_type, owner=self)  # build the pet, owner = me
         self.pets.append(pet)  # remember it in this owner's list
         return pet  # return so caller can immediately add tasks to it
 
     def get_all_tasks(self):
+        """Return every task across all of this owner's pets as one list."""
         # Flatten tasks across every pet into one list.
         # Each task keeps its .pet back-reference, so the plan knows whose task it is.
         all_tasks = []  # start with an empty collection
@@ -69,9 +93,11 @@ class Owner:
 
 class Scheduler:
     def __init__(self, owner):
+        """Create a scheduler that plans for the given owner."""
         self.owner = owner  # data source: the Owner whose pets' tasks we plan
 
     def build_plan(self, sort_by="time"):
+        """Return the owner's tasks sorted by time (default) or priority."""
         # Build the ordered daily plan from all of the owner's tasks.
         tasks = self.owner.get_all_tasks()  # gather every task across all pets
 

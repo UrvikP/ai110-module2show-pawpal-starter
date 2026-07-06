@@ -61,7 +61,13 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+    - I wanted to make sure the schedule was displayed in order from the start time, then by priority.
+    - The time it takes to do a task is factored in when creating another task, to avoid time conflicts.
+        - In regards to this, I've decided to just warn the user that there is conflict and to add in the new task even though there is time conflict. I want to make sure the user can see that there is time conflict. Claude AI advised not to make it interactive as it'll break the test case due to the promt.
+        - I need to add this for the Streamlit UI layer.
 - How did you decide which constraints mattered most?
+    - Order by time started followed by a secondary ordering of the Priority is important.
+
 
 **b. Tradeoffs**
 
