@@ -45,6 +45,11 @@ One change that was made was changing the Priority element into a class. This wa
     - When I had the create a Python Class skeleton, I notice the set_name function in the Owner class. I took a look in app.py and see that there's no directive or reason to have a function that allows the user to change their name. So i opted to delete this function. I made sure to ask Claude why it was written in the first place, just to be safe and it pretty much agreed that it was redundant as the name variable is public so it can easily be rename to something else for example: Owner.name = "New Name Here"
         - This change was also made in the UML draft by removing +set_name from the draft.
 
+Upon asking Claude AI to review the UML diagram along with pawpal_system.py, it mentioned that while Owner can refer to pet and pet can refer to list, a list doesn't know which pet it belongs to, a pet doesn't know who it's owner is and so when we sort tasks, this inability to back-reference will cause problems especially for sorting daily tasks.
+    - Another mention was that duration was actually a string. It recommended that it be a Int to sum durations and compare available time.
+    - I also changed the Priority class to assign numeric values, this way its easier to sort by Priority.
+    - The dialy_plan method will sort the tasks by time with a secondary preference to prioprity just in case an owner has mutliple things they want to do and alotted that same start time.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

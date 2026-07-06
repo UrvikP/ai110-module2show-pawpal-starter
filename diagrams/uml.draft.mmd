@@ -9,30 +9,34 @@ classDiagram
         +daily_plan(sort_by) list~Task~
     }
 
+    class Priority {
+        <<enumeration>>
+        HIGH = 1
+        MEDIUM = 2
+        LOW = 3
+    }
+
     class Pet {
         +str name
         +str pet_type
         +dict~str, Task~ tasks
+        +Owner owner
         +add_task(task) None
         +get_tasks() list~Task~
     }
 
     class Task {
-        +str time_start
+        +int time_start
         +str description
-        +str duration
+        +int duration_min
         +Priority priority
+        +Pet pet
         +__lt__(other) bool
-    }
-
-    class Priority {
-        <<enumeration>>
-        HIGH
-        MEDIUM
-        LOW
     }
 
     Owner "1" --> "1..*" Pet : owns
     Pet "1" --> "0..*" Task : has
+    Pet "*" --> "1" Owner : belongs to
+    Task "*" --> "1" Pet : belongs to
     Task --> Priority : uses
     
