@@ -50,6 +50,10 @@ Upon asking Claude AI to review the UML diagram along with pawpal_system.py, it 
     - I also changed the Priority class to assign numeric values, this way its easier to sort by Priority.
     - The dialy_plan method will sort the tasks by time with a secondary preference to prioprity just in case an owner has mutliple things they want to do and alotted that same start time.
 
+Upon reaching phase 2, I noticed that Task class does not have the ability to mark a task as complete. I added this attribute in the task class.
+
+Also it seems there should be a scheduler Class that is in Charge of making the Schedule. I had initially baked this right into the Owner class. I asked Claude to instead Create a new Scheduler class. I've taken out the priority class and made it a string set at the creation of a new task. I've opted to create a module that assigns each priority string a number, and the scheduler class will now gather all the data from an owner class and then order it based on the time and then by priority.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

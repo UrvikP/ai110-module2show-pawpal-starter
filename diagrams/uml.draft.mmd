@@ -6,14 +6,12 @@ classDiagram
         +str name
         +list~Pet~ pets
         +add_pet(name, pet_type) Pet
-        +daily_plan(sort_by) list~Task~
+        +get_all_tasks() list~Task~
     }
 
-    class Priority {
-        <<enumeration>>
-        HIGH = 1
-        MEDIUM = 2
-        LOW = 3
+    class Scheduler {
+        +Owner owner
+        +build_plan(sort_by) list~Task~
     }
 
     class Pet {
@@ -29,8 +27,10 @@ classDiagram
         +int time_start
         +str description
         +int duration_min
-        +Priority priority
+        +str priority
         +Pet pet
+        +bool completed
+        +mark_complete() None
         +__lt__(other) bool
     }
 
@@ -38,5 +38,5 @@ classDiagram
     Pet "1" --> "0..*" Task : has
     Pet "*" --> "1" Owner : belongs to
     Task "*" --> "1" Pet : belongs to
-    Task --> Priority : uses
+    Scheduler --> Owner : plans for
     
