@@ -1,6 +1,6 @@
 classDiagram
-    %% PawPal+ class design based on brainstorm.
-    %% Owner has 1..* Pets; each Pet has 0..* Tasks.
+    %% PawPal+ class design.
+    %% Owner has 1..* Pets; each Pet has 0..* Tasks; Scheduler plans for an Owner.
 
     class Owner {
         +str name
@@ -11,15 +11,17 @@ classDiagram
 
     class Scheduler {
         +Owner owner
-        +build_plan(sort_by) list~Task~
+        +build_plan(sort_by, completed, pet_name) list~Task~
     }
 
     class Pet {
         +str name
         +str pet_type
-        +dict~str, Task~ tasks
+        +list~Task~ tasks
         +Owner owner
-        +add_task(task) None
+        +find_conflicts(task) list~Task~
+        +add_task(task) list~Task~
+        +replace_conflicts(task) Task
         +get_tasks() list~Task~
     }
 
@@ -30,7 +32,9 @@ classDiagram
         +str priority
         +Pet pet
         +bool completed
-        +mark_complete() None
+        +str frequency
+        +date date
+        +mark_complete() Task
         +__lt__(other) bool
     }
 
@@ -39,4 +43,3 @@ classDiagram
     Pet "*" --> "1" Owner : belongs to
     Task "*" --> "1" Pet : belongs to
     Scheduler --> Owner : plans for
-    
