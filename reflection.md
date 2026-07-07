@@ -61,29 +61,23 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
-    - I wanted to make sure the schedule was displayed in order from the start time, then by priority.
+    - I wanted to make sure the schedule was displayed in order from the start time.
     - The time it takes to do a task is factored in when creating another task, to avoid time conflicts.
-        - In regards to this, I've decided to just warn the user that there is conflict and to add in the new task even though there is time conflict. I want to make sure the user can see that there is time conflict. Claude AI advised not to make it interactive as it'll break the test case due to the promt.
-        - I need to add this for the Streamlit UI layer.
+        - Conflict resolution has been added, we don't want conflicting tasks in the list. Even if the pet name is the same or different, the time will always be compared to ensure no conflict occurs.
+    - User driven feature were implemented to filter for things like "marked as complete" etc.
 - How did you decide which constraints mattered most?
-    - Order by time started followed by a secondary ordering of the Priority is important.
-    - I also wanted to print our messages to the user about time conflicts for task and add each task instead of just overwriting the tasks with the same start time.
-    - Factoring in the duration for each task into the calculations was very import as well.
-    - I changed the UI: "done" is replaced with a check mark when clicked.
+    - Logically, tasks need to be order by start time. We also need to factor in the duration time as well to avoid overlapping tasks.
+    - When we generate a Schedule, we need to make sure that each schedule only generates a schedule for ONE Owner and it includes all pets that Owner owns. 
+    - I haven't included a constraint to skip any tasks when the time has run out for them.
+    
 
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
-    - I changed Pet.tasks from a dictionary into a list.
-        - This made the search lookup for checking if there is a time conflict from O(1) to O(n) --- small n. It can go up to N times though.
-        - What I gained though, is adding multiple task with with conflicting time.
-    - For conflict-handling: I only added a warning but still chose to add the task to the list anyways. THis is to avoid the issue of users being confused when the task is not added, or when the previous task is overwritten.
-        - Also I plan on changing this once this is connected to Streamlit for user inputs.
-        - We certainly lost out on enforcing any overlapping rule, but again this will be changed once the user input is added in.
-
-    - Im also adding a start-time input in the UI as its missing and my implementation has one. THis is how I ordered the taskes.
+    Sorting and filtering is all built into one method (build_plan).
+    This is done because the filter options are limited in my project. I don't plan on adding any additional filters, so the parameters won't be changing. If i needed more filter, Claude AI does reommend creating a filters object.
 
 ---
 
@@ -128,12 +122,15 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 **a. What went well**
 
 - What part of this project are you most satisfied with?
-    I think the planning part was the most satisfying.
+    I think the planning part was the most satisfying. I was satisfied with creating the UML diagram and the skeleton for the classes. Even though it changed alot throughout the course fo the project, It was atleast interesting to see all the changes.
 
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+    - probably improve the UI more.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+    Designing systems is challenging at the beginning because it is very hard to account for everything. Also the ammount of changes you'll notice as you begin implementing algorithms and then UI is substantial to me. AI absolutely helped to make sense of everything and not get lost, aswell as wire methods and algorithms to UI elements. It just turned what feels like a week long project into an 8 hour sprint. I can see why AI is so hpyed by many engineers.

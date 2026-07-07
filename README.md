@@ -94,14 +94,17 @@ tests/test_pawpal.py ............                                        [100%]
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | def __lt__(self, other) | List is sorted by time, but you have the option to sort by priority afterwards |
-| Filtering | def build_plan(self, sort_by="time", completed=None, pet_name=None) | I added in filter options to allow the user to sort by completion and or pet name if they have multiple pets |
-| Conflict handling | def find_conflicts(self, task) , def add_task(self, task):, def replace_conflicts(self, task) | user has the option to replace, remove or not add a conflicting task |
-| Recurring tasks | mark_complete() | If a daily task is marked complete, a new daily task spawns with the same task, but date being set to tomorrow. It will be filltered out. |
+| Task sorting | `Task.__lt__`, `Scheduler.build_plan(sort_by=...)` | Plans sort chronologically by date then start time; the user can switch to `priority` mode instead. |
+| Priority ranking | `PRIORITY_RANK`, `Scheduler.build_plan` | High/medium/low map to numeric ranks so they sort correctly (not alphabetically). |
+| Tie-breaking | `Scheduler.build_plan` | Time-sorted ties break by priority; priority-sorted ties break by date/time — so ordering is always deterministic. |
+| Filtering | `Scheduler.build_plan(completed=..., pet_name=...)` | Optionally show only complete/incomplete tasks and/or a single pet's tasks; filters combine. |
+| Conflict detection | `Pet.find_conflicts`, `Pet.add_task` | Duration- and date-aware overlap check; overlapping tasks are blocked and the conflicts returned to the caller. |
+| Conflict resolution | `Pet.replace_conflicts`, `app.py` UI | On a conflict the user chooses to replace the existing task or skip adding the new one. |
+| Recurring tasks | `Task.mark_complete`, `FREQUENCY_DELTAS` | Completing a `daily`/`weekly` task auto-spawns its next occurrence (+1 day / +7 days); the completed one is filtered out. |
+| Task completion | `Task.mark_complete`, `Task.completed` | Tasks can be marked done and are visually struck through in the UI. |
+| Multi-owner / multi-pet | `Owner.add_pet`, `Owner.get_all_tasks`, `Scheduler` | Each owner keeps its own pets; a plan aggregates tasks across all of one owner's pets. |
 
 ## 📸 Demo Walkthrough
 
