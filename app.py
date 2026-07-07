@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import time, date
 
 import streamlit as st
 
@@ -94,19 +94,28 @@ pet = get_or_create_pet(owner, pet_name, species)
 st.markdown("### Tasks")
 st.caption("Add tasks for the pet above. They persist across reruns via session_state.")
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
+row1_col1, row1_col2, row1_col3 = st.columns(3)
+with row1_col1:
     task_title = st.text_input("Task title", value="Morning walk")
-with col2:
+with row1_col2:
+    task_date = st.date_input("Date", value=date.today())
+with row1_col3:
     start = st.time_input("Start time", value=time(8, 0))
-with col3:
+
+row2_col1, row2_col2, row2_col3 = st.columns(3)
+with row2_col1:
     duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
-with col4:
+with row2_col2:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
+with row2_col3:
+    frequency = st.selectbox("Repeat", ["none", "daily", "weekly"])
 
 if st.button("Add task"):
     time_start = start.hour * 60 + start.minute  # minutes since midnight
-    new_task = Task(time_start, task_title, int(duration), priority)
+    new_task = Task(
+        time_start, task_title, int(duration), priority,
+        frequency=frequency, date=task_date,
+    )
     conflicts = pet.add_task(new_task)  # returns conflicts (and skips adding) on overlap
     if conflicts:
         # Stash the blocked task so the user can choose replace vs. skip.
@@ -120,12 +129,12 @@ if pending_task is not None:
     conflict_pet = st.session_state.get("pending_pet")
     conflicts = conflict_pet.find_conflicts(pending_task)
     conflict_desc = ", ".join(
-        f"'{c.description}' at {format_time(c.time_start)}" for c in conflicts
+        f"'{c.description}' at {c.date} {format_time(c.time_start)}" for c in conflicts
     )
     st.error(
         f"Time conflict: '{pending_task.description}' at "
-        f"{format_time(pending_task.time_start)} overlaps with {conflict_desc}. "
-        "Choose how to resolve it."
+        f"{pending_task.date} {format_time(pending_task.time_start)} overlaps with "
+        f"{conflict_desc}. Choose how to resolve it."
     )
     replace_col, skip_col = st.columns(2)
     with replace_col:
@@ -144,9 +153,10 @@ if tasks:
     for i, t in enumerate(tasks):
         info_col, action_col = st.columns([4, 1])
         # Strike-through completed tasks so their status is visually clear.
+        repeat = "" if t.frequency == "none" else f" 🔁 {t.frequency}"
         label = (
-            f"{format_time(t.time_start)} — {t.description} "
-            f"({t.duration_min} min) [priority: {t.priority}]"
+            f"{t.date} {format_time(t.time_start)} — {t.description} "
+            f"({t.duration_min} min) [priority: {t.priority}]{repeat}"
         )
         with info_col:
             st.markdown(f"~~{label}~~ ✅" if t.completed else label)
@@ -155,7 +165,10 @@ if tasks:
                 st.write("Done")
             # Unique key per task so Streamlit tracks each button separately.
             elif st.button("Mark done", key=f"done_{selected_owner}_{pet.name}_{i}"):
-                t.mark_complete()  # wire Task.mark_complete() from pawpal_system
+                # Recurring tasks spawn their next occurrence here.
+                spawned = t.mark_complete()  # wire Task.mark_complete()
+                if spawned is not None:
+                    st.toast(f"Next '{spawned.description}' scheduled for {spawned.date}.")
                 st.rerun()  # refresh so the row shows as completed immediately
 else:
     st.info("No tasks yet. Add one above.")
@@ -179,11 +192,12 @@ if st.button("Generate schedule"):
     scheduler = Scheduler(owner)  # data source: the persisted Owner
     plan = scheduler.build_plan(sort_by, completed=completed, pet_name=pet_filter)
     if plan:
-        st.write(f"Today's schedule for {owner.name}:")
+        st.write(f"Schedule for {owner.name}:")
         for t in plan:
+            repeat = "" if t.frequency == "none" else f" 🔁 {t.frequency}"
             st.write(
-                f"- {format_time(t.time_start)} — {t.description} "
-                f"({t.duration_min} min) [priority: {t.priority}] for {t.pet.name}"
+                f"- {t.date} {format_time(t.time_start)} — {t.description} "
+                f"({t.duration_min} min) [priority: {t.priority}] for {t.pet.name}{repeat}"
             )
     else:
         st.info("No tasks match the current filters (or none added yet).")

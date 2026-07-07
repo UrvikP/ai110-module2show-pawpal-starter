@@ -95,12 +95,14 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 - What kinds of prompts or questions were most helpful?
     I used AI to help me brainstorm, generate code for specific functions, and finally after confirming that the code works, highlighting specific methods/code blocks to see if it can be refactored. 
         - I told the AI about a problem relating to UI, specifically the generate schedule button, and asked it to change or add features like sorting by time or priority, then filtering by pet name or by task completion.
-    - Debugging and refactoring code go i=hand in hand. After debugging, I refactor the code.
+    - I've asked the AI to determine if certain methods can be refactored. It actually said no and didn't recommend that i change anything. It did offer another version, but that version, as it warned was highly unreadable and hard to debug, and I agreed so I didnt make the change.
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+    I did a good job of asking it for multiple different variations and explamantions for each variation. Each code had tradeoffs and based off of those tradeoffs, I made my decision on which route to go. In fact, I've made usre to ask for multiple variations for pretty much everything.
+        - Code readablility is very important to me. Also making sure I'm not changing all my previous logic is crucial. I need to understand my code, otherwise I'm probably spending more time understanding the code than implementing minor changes here and there.
 
 ---
 
@@ -110,11 +112,13 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 
 - What behaviors did you test?
 - Why were these tests important?
+    Any changes I made, such a conflic resolution, filtering and sorting was testing. Any algorithm that was created and or changed was tested, either with an existing test or a new test developed to test the new feature. I specifically asked the AI to test each new algorithm. 
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+    Overall I'm pretty confident that my scheduler works well. As for edge cases, I handled multiple owners, multiple pets, no pets, no tasks, daily task and weekly tasks, and dates.
 
 ---
 
@@ -123,6 +127,7 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 **a. What went well**
 
 - What part of this project are you most satisfied with?
+    I think the planning part was the most satisfying.
 
 **b. What you would improve**
 

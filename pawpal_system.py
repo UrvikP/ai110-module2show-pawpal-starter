@@ -4,14 +4,25 @@ Core classes for planning a pet owner's daily care tasks:
 Owner -> Pets -> Tasks, with a Scheduler that builds the ordered plan.
 """
 
+import datetime
+
 # Priority is a plain string attribute on Task. This rank map keeps sorting
 # correct (lower rank = more important) without needing a Priority class.
 PRIORITY_RANK = {"high": 1, "medium": 2, "low": 3}
 
+# How far ahead the next occurrence of a recurring task is scheduled.
+FREQUENCY_DELTAS = {
+    "daily": datetime.timedelta(days=1),
+    "weekly": datetime.timedelta(days=7),
+}
+
 
 class Task:
-    def __init__(self, time_start, description, duration_min, priority, pet=None):
-        """Create a care task with a start time, duration, and priority."""
+    def __init__(
+        self, time_start, description, duration_min, priority,
+        pet=None, frequency="none", date=None,
+    ):
+        """Create a care task with a date, start time, duration, and priority."""
         # time_start stored as minutes since midnight (int) so tasks sort correctly.
         self.time_start = time_start
         self.description = description
@@ -19,17 +30,30 @@ class Task:
         self.priority = priority  # plain string: "high" | "medium" | "low"
         self.pet = pet  # back-reference to the owning Pet
         self.completed = False  # marked True once the owner finishes the task
+        self.frequency = frequency  # "none" | "daily" | "weekly"
+        # Calendar date the task occurs on; defaults to today when not given.
+        self.date = date or datetime.date.today()
 
     def mark_complete(self):
-        """Mark this task as done."""
-        # Flip this task's status to done so the plan/UI can show it as finished.
-        self.completed = True  # set the flag; nothing else needs to change
+        """Mark done; if recurring, spawn the next occurrence and return it (else None)."""
+        self.completed = True  # flip this instance to done
+        delta = FREQUENCY_DELTAS.get(self.frequency)  # None for non-recurring tasks
+        if delta is None or self.pet is None:
+            return None  # nothing to regenerate
+        # Build the next occurrence: same time/duration/priority/frequency, later date.
+        next_task = Task(
+            self.time_start, self.description, self.duration_min, self.priority,
+            pet=self.pet, frequency=self.frequency, date=self.date + delta,
+        )
+        # Add directly: the future date can't collide with this just-completed one,
+        # and a recurring instance should always be created.
+        self.pet.tasks.append(next_task)
+        return next_task
 
     def __lt__(self, other):
-        """Order tasks chronologically by start time (used when sorting)."""
-        # Defines "less than" so sorting a list of Tasks is chronological by default.
-        # Python calls this during sorted()/sort(); earlier start time comes first.
-        return self.time_start < other.time_start  # compare the two start times
+        """Order tasks chronologically by date, then start time (used when sorting)."""
+        # Python calls this during sorted()/sort(); earlier date/time comes first.
+        return (self.date, self.time_start) < (other.date, other.time_start)
 
 
 class Pet:
@@ -41,14 +65,15 @@ class Pet:
         self.owner = owner  # back-reference to the owning Owner
 
     def find_conflicts(self, task):
-        """Return existing tasks whose time overlaps the given task."""
-        # Two tasks overlap when each starts before the other ends. This is
-        # duration-aware, so it catches partial overlaps, not just equal starts.
+        """Return existing tasks on the same date whose time overlaps the given task."""
+        # Two tasks overlap when they share a date AND each starts before the other
+        # ends. Duration-aware, so it catches partial overlaps, not just equal starts.
         new_end = task.time_start + task.duration_min  # when the given task finishes
         return [
             t
             for t in self.tasks
-            if task.time_start < t.time_start + t.duration_min  # task starts before t ends
+            if t.date == task.date  # only same-day tasks can conflict
+            and task.time_start < t.time_start + t.duration_min  # task starts before t ends
             and t.time_start < new_end  # t starts before task ends
         ]
 
@@ -117,8 +142,12 @@ class Scheduler:
             tasks = [t for t in tasks if t.pet is not None and t.pet.name == pet_name]
 
         if sort_by == "priority":
-            # Most important first; ties broken by earlier start time.
-            return sorted(tasks, key=lambda t: (PRIORITY_RANK[t.priority], t.time_start))
+            # Most important first; ties broken by date then start time.
+            return sorted(
+                tasks, key=lambda t: (PRIORITY_RANK[t.priority], t.date, t.time_start)
+            )
 
-        # Default ("time"): chronological; ties broken by importance.
-        return sorted(tasks, key=lambda t: (t.time_start, PRIORITY_RANK[t.priority]))
+        # Default ("time"): chronological by date then time; ties broken by importance.
+        return sorted(
+            tasks, key=lambda t: (t.date, t.time_start, PRIORITY_RANK[t.priority])
+        )

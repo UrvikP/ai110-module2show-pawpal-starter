@@ -1,6 +1,11 @@
 """Tests for core PawPal+ behaviors."""
 
+import datetime
+
 from pawpal_system import Owner, Task, Scheduler
+
+DAY1 = datetime.date(2026, 1, 1)  # fixed dates so tests are deterministic
+DAY2 = datetime.date(2026, 1, 2)
 
 
 def test_mark_complete_changes_status():
@@ -91,3 +96,47 @@ def test_filter_by_pet_and_status_combined():
     plan = scheduler.build_plan(completed=False, pet_name="Biscuit")
     assert len(plan) == 1  # Biscuit's walk is complete, only Feeding remains
     assert plan[0].description == "Feeding"
+
+
+def test_daily_task_regenerates_next_day_on_complete():
+    # Completing a daily task spawns a new incomplete instance one day later.
+    owner = Owner("Alice")
+    pet = owner.add_pet("Biscuit", "Dog")
+    pet.add_task(Task(480, "Walk", 30, "high", frequency="daily", date=DAY1))
+    pet.get_tasks()[0].mark_complete()
+    tasks = pet.get_tasks()
+    assert len(tasks) == 2  # original + regenerated instance
+    new = [t for t in tasks if not t.completed][0]
+    assert new.date == DAY2  # scheduled for the next day
+    assert new.frequency == "daily"  # recurrence carries forward
+    assert new.time_start == 480 and new.description == "Walk"  # same slot/details
+
+
+def test_weekly_task_regenerates_seven_days_later():
+    # Completing a weekly task spawns the next instance seven days out.
+    owner = Owner("Alice")
+    pet = owner.add_pet("Biscuit", "Dog")
+    pet.add_task(Task(480, "Bath", 45, "medium", frequency="weekly", date=DAY1))
+    pet.get_tasks()[0].mark_complete()
+    new = [t for t in pet.get_tasks() if not t.completed][0]
+    assert new.date == DAY1 + datetime.timedelta(days=7)
+
+
+def test_non_recurring_task_does_not_regenerate():
+    # A one-off task (frequency="none") creates nothing when completed.
+    owner = Owner("Alice")
+    pet = owner.add_pet("Biscuit", "Dog")
+    pet.add_task(Task(480, "Vet visit", 60, "high", date=DAY1))  # default frequency
+    result = pet.get_tasks()[0].mark_complete()
+    assert result is None  # nothing spawned
+    assert len(pet.get_tasks()) == 1  # count unchanged
+
+
+def test_same_time_different_date_does_not_conflict():
+    # Two tasks at the same time on DIFFERENT dates should not conflict.
+    owner = Owner("Alice")
+    pet = owner.add_pet("Biscuit", "Dog")
+    pet.add_task(Task(480, "Walk", 60, "high", date=DAY1))
+    conflicts = pet.add_task(Task(480, "Walk", 60, "high", date=DAY2))
+    assert conflicts == []  # different day -> no conflict
+    assert len(pet.get_tasks()) == 2  # both added
