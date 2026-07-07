@@ -81,18 +81,15 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
 ============================= test session starts ==============================
-platform darwin -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0 -- /usr/local/bin/python3
-cachedir: .pytest_cache
+platform darwin -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
 rootdir: /Users/urvikpatel/Desktop/ai110-module2show-pawpal-starter
 plugins: anyio-4.14.0
-collecting ... collected 2 items
+collected 12 items
 
-tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 50%]
-tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [100%]
+tests/test_pawpal.py ............                                        [100%]
 
-============================== 2 passed in 0.02s ===============================
+============================== 12 passed in 0.04s ==============================
 ```
 
 ## 📐 Smarter Scheduling

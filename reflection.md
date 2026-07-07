@@ -117,6 +117,7 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+    Confidence level: 5
 - What edge cases would you test next if you had more time?
     Overall I'm pretty confident that my scheduler works well. As for edge cases, I handled multiple owners, multiple pets, no pets, no tasks, daily task and weekly tasks, and dates.
 
