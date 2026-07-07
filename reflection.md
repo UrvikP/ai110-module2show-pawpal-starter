@@ -69,6 +69,7 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
     - Order by time started followed by a secondary ordering of the Priority is important.
     - I also wanted to print our messages to the user about time conflicts for task and add each task instead of just overwriting the tasks with the same start time.
     - Factoring in the duration for each task into the calculations was very import as well.
+    - I changed the UI: "done" is replaced with a check mark when clicked.
 
 
 **b. Tradeoffs**
@@ -92,6 +93,9 @@ Also it seems there should be a scheduler Class that is in Charge of making the 
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
+    I used AI to help me brainstorm, generate code for specific functions, and finally after confirming that the code works, highlighting specific methods/code blocks to see if it can be refactored. 
+        - I told the AI about a problem relating to UI, specifically the generate schedule button, and asked it to change or add features like sorting by time or priority, then filtering by pet name or by task completion.
+    - Debugging and refactoring code go i=hand in hand. After debugging, I refactor the code.
 
 **b. Judgment and verification**
 

@@ -58,18 +58,37 @@ At minimum, your system should:
 st.divider()
 
 st.subheader("Quick Demo Inputs")
-owner_name = st.text_input("Owner name", value="Jordan")
+
+# Persist MANY owners across reruns, keyed by name. Each name maps to its own
+# Owner object with its own pets, so pets never leak between owners.
+if "owners" not in st.session_state:
+    st.session_state.owners = {}
+
+# Create a new owner by name.
+new_owner_name = st.text_input("Add owner", value="Jordan")
+if st.button("Add / select owner") and new_owner_name:
+    if new_owner_name not in st.session_state.owners:
+        st.session_state.owners[new_owner_name] = Owner(new_owner_name)
+    st.session_state.active_owner = new_owner_name
+
+# Choose which owner is active. Everything below operates on this owner only.
+if not st.session_state.owners:
+    st.info("Add an owner above to get started.")
+    st.stop()
+
+owner_names = list(st.session_state.owners.keys())
+default_index = (
+    owner_names.index(st.session_state.active_owner)
+    if st.session_state.get("active_owner") in st.session_state.owners
+    else 0
+)
+selected_owner = st.selectbox("Active owner", owner_names, index=default_index)
+owner = st.session_state.owners[selected_owner]  # the ONE chosen owner
+
 pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 
-# Persist a single Owner across reruns. Guarding with the "not in" check means
-# it is created once, not rebuilt (and emptied) on every rerun.
-if "owner" not in st.session_state:
-    st.session_state.owner = Owner(owner_name)
-owner = st.session_state.owner
-owner.name = owner_name  # keep the owner's name in sync with the UI field
-
-# Get (or create) the pet the tasks will be added to.
+# Get (or create) the pet under THIS owner only.
 pet = get_or_create_pet(owner, pet_name, species)
 
 st.markdown("### Tasks")
@@ -87,22 +106,57 @@ with col4:
 
 if st.button("Add task"):
     time_start = start.hour * 60 + start.minute  # minutes since midnight
-    pet.add_task(Task(time_start, task_title, int(duration), priority))
+    new_task = Task(time_start, task_title, int(duration), priority)
+    conflicts = pet.add_task(new_task)  # returns conflicts (and skips adding) on overlap
+    if conflicts:
+        # Stash the blocked task so the user can choose replace vs. skip.
+        st.session_state.pending_task = new_task
+        st.session_state.pending_pet = pet
+    # (No conflict -> add_task already added it; nothing more to do.)
 
-if pet.get_tasks():
-    st.write(f"Current tasks for {pet.name}:")
-    st.table(
-        [
-            {
-                "time": format_time(t.time_start),
-                "title": t.description,
-                "duration_min": t.duration_min,
-                "priority": t.priority,
-                "done": t.completed,
-            }
-            for t in pet.get_tasks()
-        ]
+# Conflict resolution: shown only when an add was blocked by an overlap.
+pending_task = st.session_state.get("pending_task")
+if pending_task is not None:
+    conflict_pet = st.session_state.get("pending_pet")
+    conflicts = conflict_pet.find_conflicts(pending_task)
+    conflict_desc = ", ".join(
+        f"'{c.description}' at {format_time(c.time_start)}" for c in conflicts
     )
+    st.error(
+        f"Time conflict: '{pending_task.description}' at "
+        f"{format_time(pending_task.time_start)} overlaps with {conflict_desc}. "
+        "Choose how to resolve it."
+    )
+    replace_col, skip_col = st.columns(2)
+    with replace_col:
+        if st.button("Replace existing task"):
+            conflict_pet.replace_conflicts(pending_task)  # swap old out, new in
+            st.session_state.pending_task = None
+            st.rerun()
+    with skip_col:
+        if st.button("Don't add"):
+            st.session_state.pending_task = None  # discard the new task
+            st.rerun()
+
+tasks = pet.get_tasks()
+if tasks:
+    st.write(f"Current tasks for {pet.name}:")
+    for i, t in enumerate(tasks):
+        info_col, action_col = st.columns([4, 1])
+        # Strike-through completed tasks so their status is visually clear.
+        label = (
+            f"{format_time(t.time_start)} — {t.description} "
+            f"({t.duration_min} min) [priority: {t.priority}]"
+        )
+        with info_col:
+            st.markdown(f"~~{label}~~ ✅" if t.completed else label)
+        with action_col:
+            if t.completed:
+                st.write("Done")
+            # Unique key per task so Streamlit tracks each button separately.
+            elif st.button("Mark done", key=f"done_{selected_owner}_{pet.name}_{i}"):
+                t.mark_complete()  # wire Task.mark_complete() from pawpal_system
+                st.rerun()  # refresh so the row shows as completed immediately
 else:
     st.info("No tasks yet. Add one above.")
 
@@ -113,9 +167,17 @@ st.caption("Builds a plan across all of the owner's pets using the Scheduler.")
 
 sort_by = st.selectbox("Sort by", ["time", "priority"], index=0)
 
+# Filter controls. "All" maps to None so build_plan skips that filter.
+status_choice = st.selectbox("Filter by status", ["All", "Incomplete", "Complete"])
+completed = {"All": None, "Incomplete": False, "Complete": True}[status_choice]
+
+pet_options = ["All"] + [p.name for p in owner.pets]
+pet_choice = st.selectbox("Filter by pet", pet_options)
+pet_filter = None if pet_choice == "All" else pet_choice
+
 if st.button("Generate schedule"):
     scheduler = Scheduler(owner)  # data source: the persisted Owner
-    plan = scheduler.build_plan(sort_by)
+    plan = scheduler.build_plan(sort_by, completed=completed, pet_name=pet_filter)
     if plan:
         st.write(f"Today's schedule for {owner.name}:")
         for t in plan:
@@ -124,4 +186,4 @@ if st.button("Generate schedule"):
                 f"({t.duration_min} min) [priority: {t.priority}] for {t.pet.name}"
             )
     else:
-        st.info("No tasks to schedule yet. Add some above.")
+        st.info("No tasks match the current filters (or none added yet).")

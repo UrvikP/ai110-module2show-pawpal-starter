@@ -40,27 +40,34 @@ class Pet:
         self.tasks = []  # list of Tasks (allows multiple tasks at the same time)
         self.owner = owner  # back-reference to the owning Owner
 
-    def add_task(self, task):
-        """Add a task to this pet, warning if it overlaps an existing one."""
-        # Register a task with this pet and wire up the back-reference.
-        task.pet = self  # so the task knows which pet it belongs to
+    def find_conflicts(self, task):
+        """Return existing tasks whose time overlaps the given task."""
         # Two tasks overlap when each starts before the other ends. This is
         # duration-aware, so it catches partial overlaps, not just equal starts.
-        new_end = task.time_start + task.duration_min  # when the new task finishes
-        conflicts = [
+        new_end = task.time_start + task.duration_min  # when the given task finishes
+        return [
             t
             for t in self.tasks
-            if task.time_start < t.time_start + t.duration_min  # new starts before t ends
-            and t.time_start < new_end  # t starts before new ends
+            if task.time_start < t.time_start + t.duration_min  # task starts before t ends
+            and t.time_start < new_end  # t starts before task ends
         ]
+
+    def add_task(self, task):
+        """Add a task only if it doesn't overlap; return the list of conflicts (empty if added)."""
+        task.pet = self  # so the task knows which pet it belongs to
+        conflicts = self.find_conflicts(task)  # any existing tasks it overlaps
         if conflicts:
-            # Warn about the overlapping time slot, but still add the task.
-            print(
-                f"Warning: '{task.description}' overlaps with "
-                f"'{conflicts[0].description}'. Adding it anyway."
-            )
-        self.tasks.append(task)  # add without removing the existing task
-        return task  # hand it back for convenience (e.g. chaining/testing)
+            return conflicts  # not added — caller decides to replace or skip
+        self.tasks.append(task)  # no conflict, safe to add
+        return []  # empty list signals a successful add
+
+    def replace_conflicts(self, task):
+        """Remove any tasks that overlap the given task, then add it."""
+        for t in self.find_conflicts(task):  # every task the new one overlaps
+            self.tasks.remove(t)  # drop the old conflicting task
+        task.pet = self  # wire up the back-reference
+        self.tasks.append(task)  # add the replacement
+        return task
 
     def get_tasks(self):
         """Return this pet's tasks as a list."""
@@ -96,10 +103,18 @@ class Scheduler:
         """Create a scheduler that plans for the given owner."""
         self.owner = owner  # data source: the Owner whose pets' tasks we plan
 
-    def build_plan(self, sort_by="time"):
-        """Return the owner's tasks sorted by time (default) or priority."""
+    def build_plan(self, sort_by="time", completed=None, pet_name=None):
+        """Return the owner's tasks, optionally filtered by completion/pet, then sorted."""
         # Build the ordered daily plan from all of the owner's tasks.
         tasks = self.owner.get_all_tasks()  # gather every task across all pets
+
+        # Optional filter: completion status. None = all, True/False = that status.
+        if completed is not None:
+            tasks = [t for t in tasks if t.completed == completed]
+
+        # Optional filter: only tasks belonging to the named pet. None = all pets.
+        if pet_name is not None:
+            tasks = [t for t in tasks if t.pet is not None and t.pet.name == pet_name]
 
         if sort_by == "priority":
             # Most important first; ties broken by earlier start time.

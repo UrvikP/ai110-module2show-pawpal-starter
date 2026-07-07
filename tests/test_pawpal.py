@@ -1,6 +1,6 @@
 """Tests for core PawPal+ behaviors."""
 
-from pawpal_system import Owner, Task
+from pawpal_system import Owner, Task, Scheduler
 
 
 def test_mark_complete_changes_status():
@@ -20,38 +20,74 @@ def test_add_task_increases_pet_task_count():
     assert len(pet.get_tasks()) == 1  # count went up by one
 
 
-def test_same_time_task_is_kept_not_overwritten():
-    # Adding a second task at the same start time keeps BOTH tasks (a warning is
-    # printed, but the existing task is not overwritten).
-    owner = Owner("Alice")
-    pet = owner.add_pet("Biscuit", "Dog")
-    pet.add_task(Task(480, "Morning walk", 30, "high"))
-    pet.add_task(Task(480, "Vet appointment", 45, "high"))  # same start time
-    tasks = pet.get_tasks()
-    assert len(tasks) == 2  # both tasks kept
-    descriptions = [t.description for t in tasks]
-    assert "Morning walk" in descriptions  # original still present
-    assert "Vet appointment" in descriptions  # new one added alongside it
-
-
-def test_overlapping_tasks_are_kept_with_warning(capsys):
-    # A task that starts mid-way through another (partial overlap, not equal
-    # start) should be detected: a warning prints and both tasks are kept.
+def test_conflicting_task_is_not_added():
+    # A task that overlaps an existing one is NOT added; add_task returns the
+    # list of conflicting tasks so the caller can decide what to do.
     owner = Owner("Alice")
     pet = owner.add_pet("Biscuit", "Dog")
     pet.add_task(Task(480, "Morning walk", 60, "high"))   # 08:00-09:00
-    pet.add_task(Task(510, "Vet appointment", 30, "high"))  # 08:30-09:00, overlaps
-    assert len(pet.get_tasks()) == 2  # both kept despite the overlap
-    warning = capsys.readouterr().out  # capture what add_task printed
-    assert "overlaps" in warning  # an overlap warning was shown
+    conflicts = pet.add_task(Task(510, "Vet appointment", 30, "high"))  # overlaps
+    assert len(pet.get_tasks()) == 1  # second task was NOT added
+    assert len(conflicts) == 1  # the overlap was reported back
+    assert conflicts[0].description == "Morning walk"  # names the conflict
 
 
-def test_non_overlapping_tasks_no_warning(capsys):
-    # Back-to-back tasks that do not overlap should NOT trigger a warning.
+def test_non_conflicting_task_is_added():
+    # Back-to-back tasks that do not overlap are added, and add_task returns [].
     owner = Owner("Alice")
     pet = owner.add_pet("Biscuit", "Dog")
     pet.add_task(Task(480, "Morning walk", 30, "high"))   # 08:00-08:30
-    pet.add_task(Task(510, "Feeding", 10, "high"))        # 08:30-08:40, no overlap
-    assert len(pet.get_tasks()) == 2
-    warning = capsys.readouterr().out
-    assert "overlaps" not in warning  # no false-positive warning
+    conflicts = pet.add_task(Task(510, "Feeding", 10, "high"))  # 08:30-08:40, ok
+    assert len(pet.get_tasks()) == 2  # both added
+    assert conflicts == []  # no conflicts reported
+
+
+def test_replace_conflicts_swaps_in_new_task():
+    # replace_conflicts removes overlapping tasks and adds the new one instead.
+    owner = Owner("Alice")
+    pet = owner.add_pet("Biscuit", "Dog")
+    pet.add_task(Task(480, "Morning walk", 60, "high"))   # 08:00-09:00
+    pet.replace_conflicts(Task(510, "Vet appointment", 30, "high"))  # overlaps
+    tasks = pet.get_tasks()
+    assert len(tasks) == 1  # old removed, new added -> still one task
+    assert tasks[0].description == "Vet appointment"  # the new task won
+
+
+def _owner_with_mixed_tasks():
+    # Helper: one owner, two pets, a mix of complete/incomplete tasks.
+    owner = Owner("Alice")
+    dog = owner.add_pet("Biscuit", "Dog")
+    cat = owner.add_pet("Milo", "Cat")
+    walk = Task(480, "Morning walk", 30, "high")
+    dog.add_task(walk)
+    dog.add_task(Task(600, "Feeding", 10, "medium"))
+    cat.add_task(Task(540, "Litter box", 5, "low"))
+    walk.mark_complete()  # exactly one completed task
+    return owner
+
+
+def test_filter_by_completion_status():
+    # completed=False returns only incomplete tasks; completed=True only complete.
+    scheduler = Scheduler(_owner_with_mixed_tasks())
+    incomplete = scheduler.build_plan(completed=False)
+    complete = scheduler.build_plan(completed=True)
+    assert all(not t.completed for t in incomplete)  # none are done
+    assert len(incomplete) == 2
+    assert all(t.completed for t in complete)  # all are done
+    assert len(complete) == 1
+
+
+def test_filter_by_pet_name():
+    # pet_name limits the plan to that pet's tasks only.
+    scheduler = Scheduler(_owner_with_mixed_tasks())
+    plan = scheduler.build_plan(pet_name="Milo")
+    assert len(plan) == 1  # Milo has a single task
+    assert all(t.pet.name == "Milo" for t in plan)  # nothing from other pets
+
+
+def test_filter_by_pet_and_status_combined():
+    # Filters combine: incomplete tasks for Biscuit only.
+    scheduler = Scheduler(_owner_with_mixed_tasks())
+    plan = scheduler.build_plan(completed=False, pet_name="Biscuit")
+    assert len(plan) == 1  # Biscuit's walk is complete, only Feeding remains
+    assert plan[0].description == "Feeding"
